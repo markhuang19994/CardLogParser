@@ -26,9 +26,42 @@ class Main {
     static void main(String[] args) {
         def logFiles = getRceLogFromDir(args[0] as File)
         def log = mergeRceLogFromDir(logFiles)
+
+        def data = getRequestDataInLog(log)
+        printFindData(data)
+
+        def distData = distinctRefNo(data)
+
+        def categoryDataMap = categoryDataByDate(distData)
+
+        def dateIdList = new DefaultCitiDataReader().read('C:\\Users\\markh\\IdeaProjects\\CardLogParser\\src\\main\\resources\\test_data.txt' as File)
+        def citiNeedDataMap = [:]
+        for (dateId in dateIdList) {
+            def date = dateId.date
+            def id = dateId.id
+            def dataList = categoryDataMap[date]
+            if (dataList) {
+                def dataFilterById = dataList.findAll {
+                    (it['ino'] as List)[0] == id
+                }
+                if (dataFilterById.size() > 0) {
+                    citiNeedDataMap[date] = citiNeedDataMap[date] ?: []
+                    (citiNeedDataMap[date] as List).addAll(dataFilterById)
+                } else {
+                    println "無法過濾的資料:${date} ${id},id不存在..."
+                }
+            } else {
+                println "無法過濾的資料:${date} ${id},日期不存在..."
+            }
+        }
+
+        writeDataToExcel(citiNeedDataMap)
+    }
+
+    static getRequestDataInLog(String log) {
         def om = new ObjectMapper()
 
-        def results = log.split('\n').toList().stream().filter {
+        log.split('\n').toList().stream().filter {
             it.matches('^2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+(.*)?Request Data:[\\s\\S]*$')
         }.map {
             def timeAndData = it.replaceAll('^(2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+).*?Request Data: ([\\s\\S]*)', '$1@@$2')
@@ -58,22 +91,6 @@ class Main {
         }.filter {
             it.size() > 0 && it['ino'] && it['ino'] && it['CARD_TYPE'] && it['GIFTCODE']
         }.collect(Collectors.toList())
-
-        println "找出${results.size()}筆資料:"
-
-        //依照日期分類資料
-        def dataCategoryByDateMap = [:]
-        for (result in results) {
-            def date = result['logTimeTrace'].toString().split(' ')[0]
-            def temp = dataCategoryByDateMap[date]
-            dataCategoryByDateMap[date] = temp ? temp << result : [result]
-            println "時間：${result['logTimeTrace']}, 身份證：${result['ino']}, 卡號：${result['CARD_TYPE']}, REF_NO：${result['REF_NO']}, 禮物代號：${result['GIFTCODE']}"
-        }
-
-        for (entry in dataCategoryByDateMap.entrySet()) {
-            createExcel(entry.key.toString(), entry.value as List)
-        }
-
     }
 
     static List<File> getRceLogFromDir(File logDir) {
@@ -91,12 +108,48 @@ class Main {
         }
     }
 
+    static distinctRefNo(data) {
+        def newData = []
+        def refNoList = []
+        for (datum in data) {
+            def refNo = datum['REF_NO']
+            if (refNo && !(refNo in refNoList)) {
+                newData << datum
+                refNoList << refNo
+            }
+        }
+        newData
+    }
+
     static String mergeRceLogFromDir(List<File> logFiles) {
         StringBuilder sb = new StringBuilder()
         for (logFile in logFiles) {
             sb.append(logFile.text).append('\n')
         }
         sb.toString()
+    }
+
+    static categoryDataByDate(data) {
+        def dataCategoryByDateMap = [:]
+        for (datum in data) {
+            def date = datum['logTimeTrace'].toString().split(' ')[0]
+            def temp = dataCategoryByDateMap[date]
+            dataCategoryByDateMap[date] = temp ? temp << datum : [datum]
+        }
+        dataCategoryByDateMap
+    }
+
+    static printFindData(data) {
+        println "找出${data.size()}筆資料:"
+        for (datum in data) {
+            println "時間：${datum['logTimeTrace']}, 身份證：${datum['ino']}, 卡號：${datum['CARD_TYPE']}, REF_NO：${datum['REF_NO']}, 禮物代號：${datum['GIFTCODE']}"
+        }
+    }
+
+    static writeDataToExcel(dataMap) {
+        for (entry in dataMap.entrySet()) {
+            createExcel(entry.key.toString(), entry.value as List)
+        }
     }
 
     static createExcel(String excelName, List data) {
@@ -116,7 +169,7 @@ class Main {
                 createHelper.createDataFormat().getFormat("yyyy-MM-dd HH:mm:ss,S"))
 
         int i = 1
-        for (datum in data) {
+        for (datum in (data as List<Map<String, List>>)) {
             XSSFRow row = sheet.createRow(i)
             def cell0 = row.createCell(0,)
             cell0.setCellValue(sdf.parse(datum['logTimeTrace']?.toString()))
