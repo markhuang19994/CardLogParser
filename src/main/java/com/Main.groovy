@@ -26,8 +26,8 @@ class Main {
     static ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn")
 
     static void main(String[] args) {
-        def logFiles = getRceLogFromDir(args[0] as File)
-        def citiExcelFile = '/home/markhuag/Documents/project/source/Tool/CardLogParser/src/main/resources/null gift.xlsx' as File
+        def logFiles = getRceLogFromDir(new File(System.getProperty('user.dir'), 'log'))
+        def citiExcelFile = new File(System.getProperty('user.dir'), 'input.xlsx')
         def log = mergeRceLogFromDir(logFiles)
 
         def data = getRequestDataInLog(log)
@@ -67,6 +67,7 @@ class Main {
 
         writeDataToExcel(citiNeedDataMap)
         writeDataToExcel2(citiExcelFile, citiExcelMap)
+        println '執行完畢，產出結果在result資料夾。'
     }
 
     static getRequestDataInLog(String log) {
@@ -198,8 +199,7 @@ class Main {
         sheet.autoSizeColumn(3)
         sheet.autoSizeColumn(4)
 
-        //建立輸出流
-        FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), excelName + '.xlsx'))
+        FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result/' + excelName + '.xlsx'))
         workbook.write(fos)
         workbook.close()
         fos.close()
@@ -210,15 +210,14 @@ class Main {
         Workbook workbook = new XSSFWorkbook(bis)
         Sheet sheet = workbook.getSheetAt(0)
 
-        List<CitiData> resultList = new ArrayList<>()
-
         citiExcelMap.forEach { rowNum, giftCode ->
             def row = sheet.getRow(rowNum as int)
+            String val = giftCode == '未找到' ? giftCode : (giftCode as List).join(', ')
             def cell = row.getCell(2)?:row.createCell(2)
-            row.getCell(2).setCellValue((giftCode as List).join(', '))
+            cell.setCellValue(val)
         }
 
-        FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result.xlsx'))
+        FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result/result.xlsx'))
         workbook.write(fos)
         workbook.close()
         fos.close()
