@@ -3,6 +3,8 @@ package com
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.poi.ss.usermodel.CellStyle
 import org.apache.poi.ss.usermodel.CreationHelper
+import org.apache.poi.ss.usermodel.Sheet
+import org.apache.poi.ss.usermodel.Workbook
 import org.apache.poi.xssf.usermodel.XSSFRow
 import org.apache.poi.xssf.usermodel.XSSFSheet
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
@@ -25,37 +27,46 @@ class Main {
 
     static void main(String[] args) {
         def logFiles = getRceLogFromDir(args[0] as File)
+        def citiExcelFile = '/home/markhuag/Documents/project/source/Tool/CardLogParser/src/main/resources/null gift.xlsx' as File
         def log = mergeRceLogFromDir(logFiles)
 
         def data = getRequestDataInLog(log)
+        data.forEach({
+            it['ino'] =it['ino']?:it['idNO']?:it['ID_NO']
+        })
         printFindData(data)
 
         def distData = distinctRefNo(data)
 
         def categoryDataMap = categoryDataByDate(distData)
 
-        def dateIdList = new DefaultCitiDataReader().read('C:\\Users\\markh\\IdeaProjects\\CardLogParser\\src\\main\\resources\\test_data.txt' as File)
+        def citiData = new ExcelCitiDataReader().read(citiExcelFile)
         def citiNeedDataMap = [:]
-        for (dateId in dateIdList) {
-            def date = dateId.date
-            def id = dateId.id
+        def citiExcelMap = [:]
+        for (citiDatum in citiData) {
+            def date = citiDatum.date
+            def id = citiDatum.id
             def dataList = categoryDataMap[date]
             if (dataList) {
                 def dataFilterById = dataList.findAll {
-                    (it['ino'] as List)[0] == id
+                    (it['ino'] as List)[0] == id && it['CARD_TYPE'] && (it['CARD_TYPE'] as List)[0].toString().contains(citiDatum.crdType)
                 }
                 if (dataFilterById.size() > 0) {
+                    citiExcelMap.put(citiDatum.rowNum, dataFilterById.collect { it['GIFTCODE'][0] })
                     citiNeedDataMap[date] = citiNeedDataMap[date] ?: []
                     (citiNeedDataMap[date] as List).addAll(dataFilterById)
                 } else {
+                    citiExcelMap.put(citiDatum.rowNum, '未找到')
                     println "無法過濾的資料:${date} ${id},id不存在..."
                 }
             } else {
+                citiExcelMap.put(citiDatum.rowNum, '未找到')
                 println "無法過濾的資料:${date} ${id},日期不存在..."
             }
         }
 
         writeDataToExcel(citiNeedDataMap)
+        writeDataToExcel2(citiExcelFile, citiExcelMap)
     }
 
     static getRequestDataInLog(String log) {
@@ -89,7 +100,7 @@ class Main {
             }
             [:]
         }.filter {
-            it.size() > 0 && it['ino'] && it['ino'] && it['CARD_TYPE'] && it['GIFTCODE']
+            it.size() > 0 && (it['ino'] || it['idNO'] || it['ID_NO']) && it['CARD_TYPE'] && it['GIFTCODE']
         }.collect(Collectors.toList())
     }
 
@@ -189,6 +200,25 @@ class Main {
 
         //建立輸出流
         FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), excelName + '.xlsx'))
+        workbook.write(fos)
+        workbook.close()
+        fos.close()
+    }
+
+    static writeDataToExcel2(File dataFile, Map citiExcelMap) {
+        ByteArrayInputStream bis = new ByteArrayInputStream(dataFile.bytes)
+        Workbook workbook = new XSSFWorkbook(bis)
+        Sheet sheet = workbook.getSheetAt(0)
+
+        List<CitiData> resultList = new ArrayList<>()
+
+        citiExcelMap.forEach { rowNum, giftCode ->
+            def row = sheet.getRow(rowNum as int)
+            def cell = row.getCell(2)?:row.createCell(2)
+            row.getCell(2).setCellValue((giftCode as List).join(', '))
+        }
+
+        FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result.xlsx'))
         workbook.write(fos)
         workbook.close()
         fos.close()
