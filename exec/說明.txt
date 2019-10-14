@@ -1,0 +1,21 @@
+1.要parse的log請放置在log資料夾中
+2.log資料夾中的檔案請依照時間排列，並命名為CLM_WebLog_RCE2.log.1，CLM_WebLog_RCE2.log.2...
+3.缺失gift code的excel請命名為input.xslx放置於根目錄
+4.按下start.bat
+5.結果將產出於result資料夾
+
+結構圖:
+
+exec:
+│  CardLogParser.jar
+│  input.xlsx
+│  start.bat
+│  說明.txt
+│
+├─log
+│      CLM_WebLog_RCE2.log.1
+│      CLM_WebLog_RCE2.log.2
+│      CLM_WebLog_RCE2.log.3
+│      CLM_WebLog_RCE2.log.4
+│
+└─result
