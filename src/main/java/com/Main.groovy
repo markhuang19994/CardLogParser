@@ -142,6 +142,7 @@ class Main {
             def aName = a.getName()
             def bName = b.getName()
             if (aName == logName) return -1
+            if (bName == logName) return 1
 
             def aIdx = aName.replace(logName + '.', '') as int
             def bIdx = bName.replace(logName + '.', '') as int
