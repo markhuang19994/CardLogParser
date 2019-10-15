@@ -32,11 +32,11 @@ class Main {
 
         def data = getRequestDataInLog(log)
         data.forEach({
-            it['ino'] =it['ino']?:it['idNO']?:it['ID_NO']
+            it['ino'] = it['ino'] ?: it['idNO'] ?: it['ID_NO']
         })
-        printFindData(data)
 
         def distData = distinctRefNo(data)
+        printFindData(distData)
 
         def categoryDataMap = categoryDataByDate(distData)
 
@@ -213,7 +213,7 @@ class Main {
         citiExcelMap.forEach { rowNum, giftCode ->
             def row = sheet.getRow(rowNum as int)
             String val = giftCode == '未找到' ? giftCode : (giftCode as List).join(', ')
-            def cell = row.getCell(2)?:row.createCell(2)
+            def cell = row.getCell(2) ?: row.createCell(2)
             cell.setCellValue(val)
         }
 

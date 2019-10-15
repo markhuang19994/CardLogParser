@@ -1,3 +1,3 @@
 @echo off
-java -jar -Dfile.encoding=utf-8 .\CardLogParser.jar
+java -Dfile.encoding=utf-8 -jar .\CardLogParser.jar
 pause
