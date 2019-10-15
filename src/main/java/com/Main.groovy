@@ -73,8 +73,8 @@ class Main {
             }
         }
 
-        writeDataToExcel(citiNeedDataMap)
         writeDataToExcel2(citiExcelFile, citiExcelMap)
+        writeDataToExcel(citiNeedDataMap)
         println '執行完畢，產出結果在result資料夾。'
     }
 
