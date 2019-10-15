@@ -26,8 +26,11 @@ class Main {
     static ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn")
 
     static void main(String[] args) {
-        def logFiles = getRceLogFromDir(new File(System.getProperty('user.dir'), 'log'))
         def citiExcelFile = new File(System.getProperty('user.dir'), 'input.xlsx')
+        def citiData = new ExcelCitiDataReader().read(citiExcelFile)
+
+        def logDirPath = new File(System.getProperty('user.dir'), 'log')
+        def logFiles = getRceLogFromDirAll(logDirPath)
         def log = mergeRceLogFromDir(logFiles)
 
         def data = getRequestDataInLog(log)
@@ -40,7 +43,6 @@ class Main {
 
         def categoryDataMap = categoryDataByDate(distData)
 
-        def citiData = new ExcelCitiDataReader().read(citiExcelFile)
         def citiNeedDataMap = [:]
         def citiExcelMap = [:]
         for (citiDatum in citiData) {
@@ -52,15 +54,20 @@ class Main {
                     (it['ino'] as List)[0] == id && it['CARD_TYPE'] && (it['CARD_TYPE'] as List)[0].toString().contains(citiDatum.crdType)
                 }
                 if (dataFilterById.size() > 0) {
-                    citiExcelMap.put(citiDatum.rowNum, dataFilterById.collect { it['GIFTCODE'][0] })
+                    citiExcelMap.put(citiDatum.rowNum, dataFilterById.collect {
+                        new GiftCodeAndTimeTrace(
+                                giftCode: it['GIFTCODE'][0],
+                                timeTrace: it['logTimeTrace']
+                        )
+                    })
                     citiNeedDataMap[date] = citiNeedDataMap[date] ?: []
                     (citiNeedDataMap[date] as List).addAll(dataFilterById)
                 } else {
-                    citiExcelMap.put(citiDatum.rowNum, '未找到')
+                    citiExcelMap.put(citiDatum.rowNum, null)
                     println "無法過濾的資料:${date} ${id},id不存在..."
                 }
             } else {
-                citiExcelMap.put(citiDatum.rowNum, '未找到')
+                citiExcelMap.put(citiDatum.rowNum, null)
                 println "無法過濾的資料:${date} ${id},日期不存在..."
             }
         }
@@ -105,6 +112,28 @@ class Main {
         }.collect(Collectors.toList())
     }
 
+    static List<File> getRceLogFromDirAll(File logDirParent) {
+        List<File> logDirs = logDirParent.listFiles({
+            it.getName().matches("^2019-\\d{2}-\\d{2}\$")
+        } as FileFilter)?.sort { a, b ->
+            def aName = a.getName()
+            def bName = b.getName()
+
+            def x = aName.replaceAll('^2019-(\\d{2}-\\d{2})', '$1').split('-')
+            def y = bName.replaceAll('^2019-(\\d{2}-\\d{2})', '$1').split('-')
+
+            def scX = (x[0] as int) * 100 + (x[1] as int)
+            def scY = (y[0] as int) * 100 + (y[1] as int)
+            Integer.compare(scX, scY)
+        }?.toList() ?: []
+
+        def result = []
+        for (logDir in logDirs) {
+            result.addAll(getRceLogFromDir(logDir))
+        }
+        result
+    }
+
     static List<File> getRceLogFromDir(File logDir) {
         def logName = 'CLM_WebLog_RCE2.log'
         logDir.listFiles({
@@ -112,7 +141,7 @@ class Main {
         } as FileFilter)?.sort { a, b ->
             def aName = a.getName()
             def bName = b.getName()
-            if (aName == logName) return 1
+            if (aName == logName) return -1
 
             def aIdx = aName.replace(logName + '.', '') as int
             def bIdx = bName.replace(logName + '.', '') as int
@@ -215,16 +244,36 @@ class Main {
         Workbook workbook = new XSSFWorkbook(bis)
         Sheet sheet = workbook.getSheetAt(0)
 
-        citiExcelMap.forEach { rowNum, giftCode ->
+        sheet.getRow(0).createCell(11).setCellValue('detail')
+        citiExcelMap.forEach { rowNum, giftCodeAndTimeTraceList ->
             def row = sheet.getRow(rowNum as int)
-            String val = giftCode == '未找到' ? giftCode : (giftCode as List).join(', ')
-            def cell = row.getCell(2) ?: row.createCell(2)
-            cell.setCellValue(val)
+
+            def cell2 = row.getCell(2) ?: row.createCell(2)
+            if (giftCodeAndTimeTraceList == null) {
+                cell2.setCellValue('未找到')
+            } else {
+                def cell2Sb = new StringBuilder()
+                def cell11Sb = new StringBuilder()
+                for (giftCodeAndTimeTrace in (giftCodeAndTimeTraceList as List<GiftCodeAndTimeTrace>)) {
+                    cell2Sb.append(giftCodeAndTimeTrace.giftCode).append(', ')
+                    cell11Sb.append(giftCodeAndTimeTrace.timeTrace + '=>' + giftCodeAndTimeTrace.giftCode).append('| ')
+                }
+
+                def cell2Val = cell2Sb.toString()
+                def cell11Val = cell11Sb.toString()
+                cell2.setCellValue(cell2Val[0..cell2Val.length() - 3])
+                row.createCell(11).setCellValue(cell11Val[0..cell11Val.length() - 3])
+            }
         }
 
         FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result/result.xlsx'))
         workbook.write(fos)
         workbook.close()
         fos.close()
+    }
+
+    static class GiftCodeAndTimeTrace {
+        String giftCode
+        String timeTrace
     }
 }

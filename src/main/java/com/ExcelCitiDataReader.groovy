@@ -1,14 +1,9 @@
 package com
 
-import org.apache.poi.ss.usermodel.Cell
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.DateUtil
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.ss.usermodel.Workbook
+import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 
 import java.sql.Timestamp
-import java.text.SimpleDateFormat
 
 class ExcelCitiDataReader implements CitiDataReader {
 
@@ -26,7 +21,8 @@ class ExcelCitiDataReader implements CitiDataReader {
             String crdType = getStringCellValue(row.getCell(1))
 
             //dte_entry
-            String date = new SimpleDateFormat('yyyy-MM-dd').format(row.getCell(3).getDateCellValue())
+            String date = getStringCellValue(row.getCell(0)).substring(0, 8)
+            date = date[0..3] + '-' + date[4..5] + '-' + date[6..7]
 
             //crd_typ
             String idno = getStringCellValue(row.getCell(6))
