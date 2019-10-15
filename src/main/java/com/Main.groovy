@@ -120,17 +120,22 @@ class Main {
         }
     }
 
-    static distinctRefNo(data) {
+    /**
+     * 如果有多個重複的refsNo，則以時間最晚的那一個為準
+     * @param data
+     * @return
+     */
+    static distinctRefNo(List data) {
         def newData = []
         def refNoList = []
-        for (datum in data) {
+        for (datum in data.reverse()) {
             def refNo = datum['REF_NO']
             if (refNo && !(refNo in refNoList)) {
                 newData << datum
                 refNoList << refNo
             }
         }
-        newData
+        newData.reverse()
     }
 
     static String mergeRceLogFromDir(List<File> logFiles) {
