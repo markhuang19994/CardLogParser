@@ -45,7 +45,8 @@ class Main {
 
         def citiNeedDataMap = [:]
         def citiExcelMap = [:]
-        for (citiDatum in citiData) {
+
+        citiData.parallelStream().forEach { citiDatum ->
             def date = citiDatum.date
             def id = citiDatum.id
             def dataList = categoryDataMap[date]
@@ -80,7 +81,7 @@ class Main {
     static getRequestDataInLog(String log) {
         def om = new ObjectMapper()
 
-        log.split('\n').toList().stream().filter {
+        log.split('\n').toList().parallelStream().filter {
             it.matches('^2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+(.*)?Request Data:[\\s\\S]*$')
         }.map {
             def timeAndData = it.replaceAll('^(2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+).*?Request Data: ([\\s\\S]*)', '$1@@$2')
