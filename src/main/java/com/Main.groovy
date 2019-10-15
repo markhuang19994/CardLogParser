@@ -268,6 +268,8 @@ class Main {
             }
         }
 
+        sheet.autoSizeColumn(11)
+
         FileOutputStream fos = new FileOutputStream(new File(System.getProperty('user.dir'), 'result/result.xlsx'))
         workbook.write(fos)
         workbook.close()
