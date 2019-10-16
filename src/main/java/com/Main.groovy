@@ -26,29 +26,35 @@ class Main {
     static ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn")
 
     static void main(String[] args) {
-        def citiExcelFile = new File(System.getProperty('user.dir'), 'result.xlsx')
+        def citiExcelFile = new File(System.getProperty('user.dir'), 'input.xlsx')
+//        def citiExcelFile = 'C:\\Users\\markh\\Desktop\\log\\result.xlsx' as File
         def citiData = new ExcelCitiDataReader().read(citiExcelFile)
 
         def logDirPath = new File(System.getProperty('user.dir'), 'log')
+//        def logDirPath = 'C:\\Users\\markh\\Desktop\\log' as File
         def logFiles = getRceLogFromDirAll(logDirPath)
         def log = mergeRceLogFromDir(logFiles)
+
+//        debugFunction1(log)
 
         def data = getRequestDataInLog(log)
         log = null
         data.forEach({
             it['ino'] = it['ino'] ?: it['idNO'] ?: it['ID_NO']
+            it['CARD_TYPE'] = it['CARD_TYPE']?:['NA']
+            it['GIFTCODE'] = it['GIFTCODE']?:['NA']
         })
+        printAndWriteFindData(data)
 
         def distData = distinctRefNo(data)
         data = null
-        printFindData(distData)
 
         def categoryDataMap = categoryDataByDate(distData)
 
         def citiNeedDataMap = [:]
         def citiExcelMap = [:]
 
-        citiData.parallelStream().forEach { citiDatum ->
+        citiData.stream().forEach { citiDatum ->
             def date = citiDatum.date
             def id = citiDatum.id
             def dataList = categoryDataMap[date]
@@ -83,7 +89,7 @@ class Main {
     static getRequestDataInLog(String log) {
         def om = new ObjectMapper()
 
-        log.split('\n').toList().parallelStream().filter {
+        log.split('\n').toList().stream().filter {
             it.matches('^2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+(.*)?Request Data:[\\s\\S]*$')
         }.map {
             def timeAndData = it.replaceAll('^(2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+).*?Request Data: ([\\s\\S]*)', '$1@@$2')
@@ -116,7 +122,8 @@ class Main {
             }
             [:]
         }.filter {
-            it.size() > 0 && (it['ino'] || it['idNO'] || it['ID_NO']) && it['CARD_TYPE'] && it['GIFTCODE']
+//            it.size() > 0 && (it['ino'] || it['idNO'] || it['ID_NO']) && it['CARD_TYPE'] && it['GIFTCODE'] && it['REF_NO']
+            it.size() > 0 && (it['ino'] || it['idNO'] || it['ID_NO']) && it['REF_NO']
         }.collect(Collectors.toList())
     }
 
@@ -194,11 +201,15 @@ class Main {
         dataCategoryByDateMap
     }
 
-    static printFindData(data) {
+    static printAndWriteFindData(data) {
         println "找出${data.size()}筆資料:"
+        StringBuilder sb = new StringBuilder()
         for (datum in data) {
-            println "時間：${datum['logTimeTrace']}, 身份證：${datum['ino']}, 卡號：${datum['CARD_TYPE']}, REF_NO：${datum['REF_NO']}, 禮物代號：${datum['GIFTCODE']}"
+            def str = "時間：${datum['logTimeTrace']}, 身份證：${datum['ino']}, 卡號：${datum['CARD_TYPE']}, REF_NO：${datum['REF_NO']}, 禮物代號：${datum['GIFTCODE']}"
+            sb.append(str).append(System.lineSeparator())
+            println str
         }
+        new File(System.getProperty('user.dir'), 'debug.txt') << sb.toString()
     }
 
     static writeDataToExcel(dataMap) {
@@ -225,6 +236,7 @@ class Main {
 
         int i = 1
         for (datum in (data as List<Map<String, List>>)) {
+            if (datum == null) continue;
             XSSFRow row = sheet.createRow(i)
             def cell0 = row.createCell(0,)
             cell0.setCellValue(sdf.parse(datum['logTimeTrace']?.toString()))
@@ -286,5 +298,52 @@ class Main {
     static class GiftCodeAndTimeTrace {
         String giftCode
         String timeTrace
+    }
+
+
+    static debugFunction1(String log) {
+        def om = new ObjectMapper()
+        def resultMap = [:]
+
+        log.split('\n').toList().parallelStream().filter {
+            it.matches('^2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+(.*)?Request Data:[\\s\\S]*$')
+        }.map {
+            def timeAndData = it.replaceAll('^(2019-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d+).*?Request Data: ([\\s\\S]*)', '$1@@$2')
+            timeAndData.split('@@')
+        }.map {
+            if (it.length < 2 || it[1] == null || it[1] == '') return [:]
+            try {
+                def map = om.readValue(it[1], Map.class)
+                map['logTimeTrace'] = it[0]
+                return map
+            } catch (Exception e) {
+                try {
+                    def str = it[1]
+                            .replace('&quot;', '"')
+                            .replace('&amp;', '&')
+                            .replace('With', '')
+                            .replaceAll('n\\[o.*?]', 'n[o]')
+                    String json = nashorn.eval("""
+                        var a = ${str}     
+                        a['fail'] = ''    
+                        JSON.stringify(a)
+                    """.toString())
+                    def map = om.readValue(json, Map.class)
+                    map['logTimeTrace'] = it[0]
+                    return map
+                } catch (Exception e2) {
+                    e.printStackTrace()
+                    e2.printStackTrace()
+                }
+            }
+            [:]
+        }.filter {
+            it.size() > 0 && (it['ino'] || it['idNO'] || it['ID_NO']) && it['CARD_TYPE'] && it['GIFTCODE']
+        }.forEach {
+            it['ino'] = it['ino'] ?: it['idNO'] ?: it['ID_NO']
+            def ino = it['ino'][0]
+            resultMap[ino] = resultMap[ino] ? resultMap[ino] << it : [it]
+        }
+        println 123
     }
 }
