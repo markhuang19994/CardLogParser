@@ -256,10 +256,10 @@ class Main {
         citiExcelMap.forEach { rowNum, giftCodeAndTimeTraceList ->
             def row = sheet.getRow(rowNum as int)
 
-            def cell2 = row.getCell(2) ?: row.createCell(2)
             if (giftCodeAndTimeTraceList == null) {
-                cell2.setCellValue('未找到')
+//                cell2.setCellValue('未找到')
             } else {
+                def cell2 = row.getCell(2) ?: row.createCell(2)
                 def cell2Sb = new StringBuilder()
                 def cell11Sb = new StringBuilder()
                 for (giftCodeAndTimeTrace in (giftCodeAndTimeTraceList as List<GiftCodeAndTimeTrace>)) {
