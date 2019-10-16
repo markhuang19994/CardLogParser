@@ -34,6 +34,7 @@ class Main {
         def log = mergeRceLogFromDir(logFiles)
 
         def data = getRequestDataInLog(log)
+        log = null
         data.forEach({
             it['ino'] = it['ino'] ?: it['idNO'] ?: it['ID_NO']
         })
@@ -43,7 +44,6 @@ class Main {
         printFindData(distData)
 
         def categoryDataMap = categoryDataByDate(distData)
-        distData = null
 
         def citiNeedDataMap = [:]
         def citiExcelMap = [:]
