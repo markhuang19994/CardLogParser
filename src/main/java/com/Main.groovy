@@ -26,7 +26,7 @@ class Main {
     static ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn")
 
     static void main(String[] args) {
-        def citiExcelFile = new File(System.getProperty('user.dir'), 'input.xlsx')
+        def citiExcelFile = new File(System.getProperty('user.dir'), 'result.xlsx')
         def citiData = new ExcelCitiDataReader().read(citiExcelFile)
 
         def logDirPath = new File(System.getProperty('user.dir'), 'log')
@@ -100,6 +100,7 @@ class Main {
                             .replace('&quot;', '"')
                             .replace('&amp;', '&')
                             .replace('With', '')
+                            .replaceAll('n\\[o.*?]', 'n[o]')
                     String json = nashorn.eval("""
                         var a = ${str}     
                         a['fail'] = ''    
