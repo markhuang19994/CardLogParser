@@ -39,9 +39,11 @@ class Main {
         })
 
         def distData = distinctRefNo(data)
+        data = null
         printFindData(distData)
 
         def categoryDataMap = categoryDataByDate(distData)
+        distData = null
 
         def citiNeedDataMap = [:]
         def citiExcelMap = [:]
