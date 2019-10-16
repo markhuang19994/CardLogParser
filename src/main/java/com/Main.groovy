@@ -96,8 +96,12 @@ class Main {
                 return map
             } catch (Exception e) {
                 try {
+                    def str = it[1]
+                            .replace('&quot;', '"')
+                            .replace('&amp;', '&')
+                            .replace('With', '')
                     String json = nashorn.eval("""
-                        var a = ${it[1]}     
+                        var a = ${str}     
                         a['fail'] = ''    
                         JSON.stringify(a)
                     """.toString())
